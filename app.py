@@ -2,10 +2,10 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 import io
 
-st.set_page_config(page_title="Úprava variabilných symbolov", layout="centered")
+st.set_page_config(page_title="Úprava variabilných a párovacích symbolov", layout="centered")
 
-st.title("Hromadná úprava variabilných symbolov (POHODA)")
-st.write("Nahrajte váš exportný XML/TXT súbor z Pohody. Aplikácia podľa nastavení upraví variabilné symboly.")
+st.title("Hromadná úprava symbolov (POHODA)")
+st.write("Nahrajte váš exportný XML/TXT súbor z Pohody. Aplikácia podľa nastavení upraví variabilné (symVar) aj párovacie (symPar) symboly.")
 
 # Nastavenia v bočnom paneli
 st.sidebar.header("Nastavenia fakturačných radov")
@@ -50,20 +50,31 @@ if uploaded_file is not None:
         for invoice in root.findall('.//inv:invoice', namespaces):
             header = invoice.find('inv:invoiceHeader', namespaces)
             if header is not None:
-                # Nájdeme číslo faktúry a variabilný symbol
+                # Nájdeme číslo faktúry, variabilný symbol a párovací symbol
                 number_requested = header.find('./inv:number/typ:numberRequested', namespaces)
                 sym_var = header.find('inv:symVar', namespaces)
+                sym_par = header.find('inv:symPar', namespaces)
                 
                 if number_requested is not None and number_requested.text and sym_var is not None and sym_var.text:
                     inv_number = number_requested.text
                     current_sym_var = sym_var.text
                     
-                    # Logika úpravy
+                    # Logika úpravy pre Radu 1
                     if series_1 and series_1 in inv_number:
+                        # Zmena variabilného symbolu
                         sym_var.text = prefix_1 + current_sym_var
+                        # Zmena párovacieho symbolu (ak existuje a má hodnotu)
+                        if sym_par is not None and sym_par.text:
+                            sym_par.text = prefix_1 + sym_par.text
                         modified_count += 1
+                        
+                    # Logika úpravy pre Radu 2
                     elif series_2 and series_2 in inv_number:
+                        # Zmena variabilného symbolu
                         sym_var.text = prefix_2 + current_sym_var
+                        # Zmena párovacieho symbolu (ak existuje a má hodnotu)
+                        if sym_par is not None and sym_par.text:
+                            sym_par.text = prefix_2 + sym_par.text
                         modified_count += 1
         
         # Uloženie upraveného XML do pamäte s pôvodným kódovaním (Windows-1250)
@@ -71,7 +82,8 @@ if uploaded_file is not None:
         tree.write(output, encoding='Windows-1250', xml_declaration=True)
         output.seek(0)
         
-        st.success(f"Súbor bol úspešne spracovaný! Počet zmenených variabilných symbolov: {modified_count}")
+        st.success(f"Súbor bol úspešne spracovaný! Počet zmenených faktúr: {modified_count}")
+        st.caption("U oboch upravených faktúr bol zmenený ako Variabilný (symVar), tak aj Párovací symbol (symPar).")
         
         st.download_button(
             label="Stiahnuť upravený súbor",
